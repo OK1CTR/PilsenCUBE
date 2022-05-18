@@ -1,0 +1,199 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2022-05-18T22:11:06+02:00
+
+====== Firmware ======
+
+* Čtyři programy - zavaděč a tři aplikace.
+* Ve Flash paměti může být několik aplikačních programů, pouze jeden je aktivní.
+* Software je chráněn CRC32 a UID0 - posledních 8 B Flash.
+* Komunikace probíhá přes jeden kanál sběrnice RS485, 250 kBd, 181.
+* Identifikátor - 0xB4, ASCII-HEX data se sumou, ukončení - 0xAA
+* Po přijetí příkazu následuje odpověď.
+* Stav programu - IB6 - vrátí stavový a chybový bajt.
+* WDI je obsluhováno v každém průchodu funkce main().
+* IWDG je nastaveno na 0,5 s.
+
+===== Zavaděč (bootloader) =====
+* Softwarová i hardwarová ochrana před přepsáním zavaděče
+* Uložen od adresy 0x08000000 do 0x0802000 
+* 50 ms po zapnutí zkontroluje aplikační program a spustí jej, je-li v pořádku, jinak s chybou čeká.
+* Maže a programuje nastavené bloky Flash.
+
+===== Příkazy zavaděče =====
+* IB6 - vrátí stav+err - 4H
+* G - začátek programování
+* K - konec programování
+* Z- začátek prog. [kB]
+* L- velikost prog. [kB]
+* M - mazání nastaveného rozsahu
+* P+(4Hex-adresa)+(32Hex-data) - programování řádky HEX souboru
+* V+(4Hex-adresa)+(32Hex-data) - verifikace
+* R+(4Hex-adresa)- čtení - vrátí (4Hex-adresa)+(32Hex-data)
+* S - parametry startu apliakční program uloží s paritou do FRAM od 0x0 pro příští start
+* JB5 - do 20 ms spustí aplikační program
+* Pokud je FRAM prázdná spustí SW od 0x080010000
+* Nepoužívaná rozhraní vypnutá, nepoužívané piny v neaktivním stavu
+
+===== Aplikace =====
+* Počáteční adresy 0x080008000 - nouze, 0x080010000 - základní, 0x080018000 - upgrade
+* Velikost maxim8ln2 32 kB
+* Jádro běží na 8 MHz
+* Bez ochrany před přepsáním, ochrana před sebepoškozením
+* Nepodmíněný skok do zavaděče - JB5
+
+===== Sestavení aplikace pro zavaděč =====
+* Sestavovací program FPC.EXE - Dos
+* Parametry spuštění - xxx.hex xxx.cal a/b - a-hax výstup / b-binární výstup
+* Soubor xxx.hex - vygenerován překladačem
+* Soubor xxx.cal - textový soubor s kalibračními daty
+* Řádek č .1 - ofset programu v kB, velikost programu v kB, verze softu - 8H, UID0 uP
+* Řádek č. 2 - 17 - kalibrační data pro Mereno[16] - 2 float čísla - ofset a převod
+* Řádek č. 18 - dvě float čísla - kapacita kondenzátoru ve F/4 a 0.
+* Řádek č. 19 - dvě float čísla - délka noci a délka dne v s
+* Výstup obsahuje kód a v horních 256 B přídavné informace
+* Kalibrační data - 36 float čísel - 144 B
+* Prázdná oblast - 100 B
+* Verze programu - 4 B
+* UID0 uP - 4 B
+* crc32 - 4 B
+
+===== Základní aplikace =====
+* Komunikace - IRQ obsluha USARTu, zprac. v mainu - Receive(), sendIO()
+* Timeout přes SysTick po 1 ms
+* Příkazy ASCII, čísla 2HEX na B
+* I2C1 řídí dig. pot., 320 kHz - write_I2C() 
+* SPI2 řídí FRAM, 8 b, 4 MHz SCK - read_FRAM(), write_FRAM()
+* Ochrana timeoutem I2C přes TIM7 po 1 us
+* ON1-3, PG3 je obsluhováno v IRQ 256 krát za sekundu, ukládá se jako Event do buferu - 64 vzorků
+* Měření - IRQ obsluha ADC, časování od TIM2, 4JSQR kanály
+* TIM3 běží po 1/256 s a časuje 1 s, čas se počítá programově a synchronizuje s rádiem - time
+* Kalibrační data jsou ve float formátu uložena 256B od konce SW ve Flash
+* Polynomy NTC termistorů jsou přímo v kódu
+
+* Ext. kanály - 0-6 a 8-15, interní teplota
+* ADC běží na 2 MHz a TIM2 běží na 8 MHz
+* ADC vzorkuje:
+
+| fvz | 100  | 200  | 1k   | Hz        |
+|-----|------|------|------|-----------|
+| Ts  | 71,5 | 41,5 | 13,5 | per. 2MHz |
+| Tm  | 42   | 27   | 13   | us        |
+
+
+* ADC vzorkuje na 1000 vzorků/s tj. za 1 ms provede 4 měření 2 * 13 + 2 * 42 = 110 us tj. 11 % max.
+* IRQ obsluha ADC za 1 s - 990 * 28 + 9 * 36 + 120 = 28164 us tj. 2,8 %
+* Vzorkovací rychlost na kanál 1000 vzorků/s pro Isol3 a Usol3,  100 vzorků/s pro napětí a teploty, ostatní proudy měřeny 200 vzroků/s
+* V IRQ funkci se pouze průměruje do S_ad[16], po změření 100 vzorků JSQR, uloží průměry do R_ad[16] 
+* Jedenkrát za 100 sekundu se v IRQ provede kalibrace ADC
+* Desetkrát za sekundu se v main() provede regulace Usol3, které se udržuje na optimální hodnotě - 13,2V - RegSol()
+* 1*s se v main() vypočtou skutečné hodnoty - Measure()
+* Skutečná měřítka jsou 1 mV, 0,1 mA a °C + 100 v short int Mereno[16]
+* Restuje se interval Ur - mimo - vážná chyba měření nebo napájení - Event
+* Další Eventy - zmrznutí akuumulátorů (Taku), přehřátí měniče (Tsc), změna proudových mezí IEx, přebití akumulátoru OVx
+* Jedenkrát za sekundu se provede regulace Upwr3 - RegPwr()
+* Jedenkrát za sekundu se provede výpočet uložené energie Psto[3] - Cap() - Ws
+* Rozdíly proudů Isol1,2 a Ipwr1,2 akumulátorů jsou dlouhodobě integrovány Qaku[2] mAs
+* Rozdíly proudů Isol1,2 a Ipwr1,2 akumulátorů při přebíjení jsou dlouhodobě integrovány Qova[2] mAs
+* Výkony zdrojů jsou dlouhodobě integrovány Pout[3] mWs
+* Jedenkrát za 10 sekund se ukládají integrované veličiny do FRAM - time, Qaku, Qova, Pout, Event+Stav ukazatel, crc32 - 40 B
+* Po zachycení Eventu ho uloží do FRAM - time, 1 / 256 s, HWev, err, SWev - 8 B
+* Jedenkrát za 10 minut ukládá stav zdroje do FRAM - time, Uaku1,2, Uc, , , Psto - 16 B
+* Při náběhu zachytí Event
+* 1 s po náběhu uloží integrované a stav 
+
+===== Obsah FRAM =====
+* 0 - 0xF - zavaděč 
+* 0x10,0x40 - průbežné - 2 bloky po 32 B
+* 0x100 - 0x1FFFF - Eventy po 8  B, 16351 Ev
+* 0x20000 - 0x7FFFF - stav po 16 B, 24575 St tj. 170 dní
+
+===== Obsah stavu - St - vrátí 2 * 2H =====
+* 0x01 - základní aplikace
+* 0x02 - EN3
+* 0x04 - IE1
+* 0x08 - IE2
+* 0x10 - nové měření ADC
+* 0x20 - nový Event
+* 0x40 - pálí anténu
+
+===== Příkazy =====
+* I - vrátí stav+err - 4H
+* J - provede SW reset uP
+* T - vrátí čas - 8H
+* t+8H - nastaví čas
+* M - vrátí měřené veličiny - 16 * 4H
+	 - Isol1, Ipwr1, Uaku1, Isol2, Ipwr2, Uaku2, Isol3, Usol3, Ipwr3, Upwr3, Uc, Ivcc, Tup, Ur, Taku, Tsc
+* W - vrátí uloženou energii - 3 * 4H - Psto Ws
+* O - vrátí přebití aku. - 2 * 4H - Qova As
+* K - vrátí bilanci aku. - 2 * 4H - Qaku As
+* k+2*4H - nastaví bilanci aku. - Qaku mAs
+* P - vrátí dodanou energii - 3 * 8H - Pout Ws
+* n - zvýší proudovou mez aku. větví
+* d - sníží proudovou mez aku. větví
+* p+2H - pálení antén - 
+* ~~ 0x00 - vrátí stav pálení
+* ~~ 0x01 - ANT1 pálí 3s
+* ~~ 0x02 - ANT2 pálí 3s
+* ~~ 0x03 - ANT3 pálí 3s
+* ~~ 0x04 - ANT4 pálí 3s
+* ~~ 0x05 - HEAR pálí 1s
+* ~~ 0x11 - ANT1 pálí 8s
+* ~~ 0x12 - ANT2 pálí 8s
+* ~~ 0x13 - ANT3 pálí 8s
+* ~~ 0x14 - ANT4 pálí 8s
+* ~~ 0x80 - nastaví stav pálení na počátek 
+* v - vrátí pozici Eventu  v paměti - 4H
+* V+4H - vrátí Event - 16H - time, 1/256s, HWev, err, SWev 
+* s - vrátí pozici stavu  v paměti - 4H
+* S+4H - vrátí zaznamenaný stav - 32H  - time, Uaku1, 2, Uc, , ,Caku
+* U - vrátí verzi softu - 8H - verze | subverze | 0 | 0 | den -2H | mesic | rok-1H
+* r - reset pozic stavu a eventu, času, přebití a dodané energie
+
+===== Chyby komunikační - návratové hodnoty chybných příkazů =====
+* Správně provedený příkaz vrátí identifikátor + parametry
+
+* e01 - chyba sumy
+* e02 - chyba zpracování zprávy
+* e03 - chybný znak
+* e04 - neznámý příkaz
+* e05 - chybný počet parametrů
+
+* e08 - chybná pozice 
+* e10 - chyba FRAM
+
+===== Chyby vnitřní (err) =====
+* 0x01 - SW chyba - prom. mimo rozsah
+* 0x02 - ztráta Eventu
+* 0x04 - Porucha ADC
+* 0x10 - komunikační chyba
+* 0x20 - chyba I2C
+* 0x40 - chyba SPI 
+
+===== Eventy - HW =====
+* 0x01 - ON1 - OFF
+* 0x02 - ON2 - OFF
+* 0x04 - ON3 - OFF
+* 0x08 - PG3 - FAIL
+* 0x10 - ON1 - OM
+* 0x20 - ON2 - ON
+* 0x40 - ON3 - ON
+* 0x80 - PG3 - good
+
+===== Eventy - SW =====
+* 0x01 - Uref mimo rozsah
+* 0x04 - Tsc přhřátí 
+* 0x08 - Tak mráz
+* 0x10 - IE1
+* 0x20 - IE2
+* 0x40 - OV1 přebití Aku1
+* 0x80 - OV2 přebití Aku2
+
+===== Kalibrační data =====
+* 256 B pod horní mezí programu - float čísla
+* pořadí podle Mereno[16] - ofset a převod - 128 B
+* kapacita kondenzátoru ve F/4 - 4 B
+* prázdno - 4 B
+* noc - 4 B
+* den - 4 B
+

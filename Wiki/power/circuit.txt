@@ -1,0 +1,104 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2022-05-18T22:06:26+02:00
+
+====== Popis zapojení ======
+
+* Tři nezávislé větve napájení PWR1, PWR2, PWR3
+* Dvě akumulátorové neřízené, pouze monitorované PWR1 a PWR2, do maximální záteže 2 A
+* Jedna superkapacitorová větev, řízená, PWR3, do maximální zátěže 1 A
+
+* Každá větev napájena ze solárních článků z dvojice protilehlých stěn družice
+* Stěny propojeny paralelně, vždy jedna stěna alespoň částečně osvětlena
+* Signál EAR=0 indikuje vypuštění
+
+===== Akumulátorové větve =====
+* Dva solární články v sérii, 4 x 3 paralelních větví, přes spínače (ochrana před zkraty článků) na stěně
+* Jeden článek - 2,45 V open, 2,25 V / 25 mA při Ri = 9,5 Ohm až 2,1 V / 29 mA, 32 mA max
+* Solární články přizpůsobeny pro přímé připojení k aku - 4,9 V open, 4,5 / 0,3 A při 1,6 Ohm až 4,2 V / 0,35 A, 0,38 A max
+
+* Kladné přívody ze stěn - SOL11,12 a SOL21,22 sečteny přes ideální diody, PMOS spínače aktivované signálem EAR
+* Záporné přívody od stěn uzemněny, všechny přívody vedeny samostatně
+* Kladný pól akumulátorů AKU1 a AKU2 připojeny přes bočníky
+* Bočník 47 mV/A + zesilovač A=100 s dolní propustí Fd1 = 72 Hz a převodem ~1,41 V / 0,3 A měří proud panelu - Isol1,2
+* Vnitřní R vstupní části se spínači = 140 m + 70 m + 47 m + konektor + přív. = 0,26 Ohm - změřeno 0,29 Ohm
+* Odběr z vypnutého akumulátoru = 2 * 23 u + 2 * 65 u + 2 * 6 u + 1 u = 189 uA - změřeno 220 uA
+* Externí nabíjení přes servisní konektor
+
+* Pomocný zdroj 3 V napájí výstupní obvody zdroje a je aktivován od sig. EAR a NEXT 
+* Zároveň je aktivováno měření U na SAK - Uaku1,2 s převodem 1,68 V/V a dolní propustí Fd1 = 18 Hz
+* Signál SAK je +Sense přívod od kladného pólu akumulátoru, odběr = 24 + 18 = 42 uA pro 4 V
+* A komparátor s OZ vůči VREF určuje mez přebíjení - signál OVA vedený do uP
+* B komparátor s OZ vůči VCC / 2 určuje dolní napěťový práh zátěže 3,33 V pro zapnutí a 3,27 V pro vypnutí, čas aktivace signálu UON - 3 ms
+* Výstupní proud je měřen bočníkem 10 mV/A + zesilovač A = 100 s dolní propustí Fd1 = 72 Hz a převodem ~1 V/A - Ipwr1,2
+* Zátěž zdroje PWR1,2 je připojena spínači sig. ON
+* Maximální odebíraný proud je určen spínačem na 1 A + 1 A, který zároveň omezuje zkratový proud na tuto hodnotu navýšení výstupního proudu na 2 A je možné signály IE a OK od uP
+* Nadproud po zapnutí může trvat max. 9 ms, potom dojde k vypnutí, prodleva po nadproudu je 22 ms - RC člen u 1G125
+* Změřen nadproud 1,2 / 2,2 A po 8,5 ms a prodlevou 29 ms
+* Stav zdroje indikován uP signálem ON
+* Ve výstupu FPC filtr - možno upravit výstupní impedanci zdroje, max. kapacitní zátěž je 50 uF
+* Vnitřní R výstupní části = 10 m + 160 m (80 m) + 50 m + konektor = 0,22 / 0,14 Ohm - změřeno 0,18 / 0,13 Ohm
+* Proudové analogové signály Isol a Ipwr jsou vzorkovány ADC uP s f = 200 Hz, Uaku je vzorkováno s f = 100 Hz a integrovány přes 1s
+* Vlastní odběr zapnutého zdroje (4,2 V aku) = 2 * 40 u + 2 * 65 u + 2 * 40 u + 2 * 40 u + 42 u + 85 u + 2 * 21 u + 15 u + 10 u = 0,57 mA - změřeno 0,68 mA
+* Aktivace po EAR - nabíjení <10 us, výstup 3 + 22ms
+
+===== Superkapacitorová větev =====
+* 6 solárních článků v sérii, 4 větve přes diody - 14,4 V open 13,2 V / 0,1 A při 14,3 Ohm až 12,3 V / 0,12 A, 0,125 A max
+* Kladné přívody ze stěn - SOL31,32 sečteny přes diody
+* Záporné přívody od stěn uzemněny, všechny přívody vedeny samostatně
+* Vstupní step-down měnič připojen přes bočník a tranzistor aktivovaný signálem EAR
+* Bočník 150 mV/A + zesilovač A = 100 s dolní propustí Fd1 = 230 Hz a převodem ~1,5 V / 0,1 A měří proud panelu - Isol3
+* Vnitřní úbytek U vstupní části s diodami = 0,27+0,12+0,15*0,16+konekt.+přív.=0,414V - změřeno 0,V 
+* Měření napětí solárních panelů Usol3 s převodem 5,7 V/V a dolní propustí Fd1 = 190 Hz
+* Externí napájení přivedeno přes signál 12 V / 0,15 A - připojení indikováno sig. EXT=1 a NEXT - úbytek 0,84 V při 0,16 A
+
+* Vstupní měnič pracuje na 500 kHz a nabíjí superkapacitory - C+
+* Výstupní Umax = 5,4 V a Iout regulovatelný přes Is od 47 do 880 mA, 88 mA bez řízení
+* Měření napětí superkapacitorů panelů Uc3 s převodem 2 V/V a dolní propustí Fd1 = 15 Hz
+* Vyrovnání napětí mezi superkapy zavedeno R děličem mezi C+, CS a GND s proudem 27 uA / 5,4 V
+
+* Výstupní step-up / down měnič pracující na 2,4 MHz je připojený přes přídavný FPC filtr na ochranný obvod
+* Výstupní napětí je regulovatelné od 3,2 do 4,5 V, 3,7 V bez řízení
+* Měnič je aktivován od signálu EAR a NEXT, minimální vstupní napětí - 1,8V - MAX6895
+* V případě funkce uP (signál OK) lze měnič vypnout signálem EN3
+* Napětí měniče je měřeno - Upwr3 s převodem 2 V/V a dolní propustí Fd1 = 32Hz
+* Správná funkce měniče je indikována uP signálem PG3
+* Teplota výstupního měniče je měřena NTC 22k termistorem, Tsc vzorkován ADC s f = 100Hz a integrací přes 1 s
+
+* Pomocný zdroj 3 V napájí výstupní obvody zdroje
+* Komaprátor s OZ určuje dolní napěťový práh zátěže 3,41 V pro zapnutí a 3,34 V pro vypnutí, čas aktivace - 3 ms
+* Výstupní proud je měřen bočníkem 22 mV/A + zesilovač A = 100 s dolní propustí Fd1 = 72 Hz a převodem ~2,2 V/A - Ipwr3
+* Zátěž zdroje PWR3 je připojena spínačem sig. ON3
+* Maximální odebíraný proud je určen spínačem na 1 A, který zároveň omezuje zkratový proud na tuto hodnotu
+* Nadproud po zapnutí může trvat max. 9 ms, potom dojde k vypnutí, prodleva po nadproudu je 22 ms
+* Změřen nadproud 1,1 A po 8 ms a prodlevou 30 ms
+* Stav zdroje indikován uP signálem ON
+* Ve výstupu FPC filtr - možno upravit výstupní impedanci zdroje, max. kapacitní zátěž je 50 uF
+* Vnitřní R výstupní části = 50 m + 22 m + 160 m + 50 m + konektor = 0,18 Ohm - změřeno 0,23 Ohm
+* Vlastní odběr EAR=open zdroje (4V C) = 65 u + 93 u + 20 u + 2 u + 1 u + 18 u + 1,3 m = 1,5 mA - změřeno 1,96 mA
+* Vlastní odběr EAR=0, EN32=0 zdroje (4V C) = 65 u + 2 * 40 u + 93 u + 20 u + 2 u + 1 u + 18 u + 1,3 m + 11 u + 10u = 1,5 mA - změřeno 2,1 mA
+* Příkon naprázdno (4V C) - změřeno 10 mA
+
+* Analogové signály Usol3 a Isol3 jsou vzorkovány ADC uP s f = 1000 Hz a integrovány přes 0,1 s
+* Analogový signál Uc3 je vzorkován ADC uP s f = 100 Hz a integrován přes 1 s
+* Ipwr3 a Upwr3 jsou vzorkovány ADC uP s f = 200 Hz a integrovány přes 1 s
+
+===== Regulace superkapacitorové větve =====
+* Cílem je zmenšit periodické zatížení akumulátorů a omezit možné přebití akumulátorů.
+* Vstupní měnič reguluje nabíjecí proud tak, aby solární panely pracovaly právě v koleni V-A charky tj. při 13,2 V do 0,2 A - po 0,1 s.
+* V režimu EXT udržuje regulace vstupního měniče Isol na 0,16 A do 5,4 V.
+* Výstupní měnič reguluje výstupní výkon tak, aby superkapacitory hradily spotřebu především v době zatmění Slunce - po 1 s.
+* Na Slunci především dobíjí C, je zapnutý a udržuje zatížení tak, aby vydržel po celou dobu tmy.
+* Vlastní regulace měničů je řešena digitálními potenciometry s I2C rozhraním.
+* Předpoklad - 64minutový den / 32 min noc za oběh, nastavené časy by měly být určitě kratší než skutečné.
+* V režimu EXT výstupní měnič reguluje výstupní výkon podle stupně dobití C.
+* Proudová regulační mez je 0,8 A.
+* Napětí je omezeno, při malém zatížení, proudem <2 mA akumulátorových větví.
+
+===== Akumulátorový blok =====
+* Dva akumulátory 18650 s kapacitou 3,1 Ah tj. 11,16 kAs
+* Kladné přívody zvlášť AKU1 a AKU2 na svorkách akuumulátorů propojeny s nabíjecími sense přívody SAK1 a SAK2
+* Záporné přívody propojeny na AKU a propojen s nabíjecím sense přívodem S-
+* Dva superkapacitory 350 F / 2,7 V zapojeny v sérii - kladný přívod C+, záporný přívod C-, střed CS
+* Změřeny přes uloženou energii - 370F
+* Měření teploty akumulátoru - NTC 10 kohm proti GND - Také vzorkován ADC s f = 100 Hz a integrací přes 1 s

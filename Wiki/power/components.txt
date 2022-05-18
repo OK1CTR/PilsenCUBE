@@ -1,0 +1,24 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2022-05-18T22:09:31+02:00
+
+====== Součástky ======
+
+===== Řídící mikropočítač =====
+* Mikrokontrolér STM32F100RBT, 128 kB Flash, 8 kB RAM, 64 pinů
+* Měří 15 analogových externích signálů a vnitřní teplotu
+* Komunikuje se standardním rádiem přes sběrnici 1 - USART1 - RX, TX, DE
+* Řídí digitální potenciometry přes I2C1 sběrnici - SCL, SDA
+* Ukládá data do FRAM 512 kB přes SPI2 - SCK, SI, SO, CS
+* Externí krystal 8 MHz = 2^7 * 5^6 - X1, X2
+* Digitální signály - vstupy - ON1-3, PG3, EXT, NEAR
+* Digitální signály - výstupy - WDI, EN3, IE1,2, S0-2, PAL, Test
+* Programování a ladění SW přes SWD - SWCLK, SWDIO, NRST, GND, VCC
+
+===== Součástky =====
+* Akumulátorové větve sestaveny pouze z radiačně otestovaných aktivních součástek
+* Odporové děliče pro měření U sestaveny pouze z rezistorů třídy 0.1 %
+* Kondenzátory v RC členech pouze s dielektrikem NPO
+* Žádné elektrolytické kondenzátory, kromě dvou superkapacitorů
+* Napájení a zabezpečení mikrokontroléru sestaveno pouze z radiačně otestovaných aktivních součástek
+* Mikrokontrolér s radiačně otestovaným čipem, ale v jiném pouzdře

@@ -1,0 +1,7 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2022-05-18T21:55:13+02:00
+
+====== Vývojová dokumentace PilsenCUBE ======
+
+* [[power|Napájecí zdroj (CZ)]]

@@ -1,0 +1,44 @@
+Content-Type: text/x-zim-wiki
+Wiki-Format: zim 0.6
+Creation-Date: 2022-05-18T22:26:50+02:00
+
+====== Bezpečnostní, servisní a vypouštěcí funkce ======
+
+===== Servisní připojení - servisní modul =====
+* Nabíjení akumulátorů - nabíjí se pouze 1 akumulátor proudem 1 A speciálním nabíječem maximálně 3 hodiny.
+* Proudový obvod nabíjení AKU1,2 přes ochranné diody
+* Snímání napětí  SAKU1,2 přes pojistky
+* Nabíjení superkapacitorů přes diodu zdrojem 12 V / 1 A - signál EXT a NEXT pro měniče a uP
+* Připojení na obě sběrnice RS485 - monitoruje pouze jednu sběrnici.
+* Signál SERV=1 - může vysílat do jedné vybrané sběrnice.
+
+* Signál EAR - aktivační spínače v sérii - po uvolnění připojí EAR k GND
+* Aktivační větve k EAR připojeny přes sčítací diody na pomocný tranzistor
+* Zajištění signálu EAR přepálením pojistky od příkazu přepalovacímu systému - HEAR
+* Po přepálení pojistky nelze signál EAR jednoduše deaktivovat
+
+===== Vlastní napájení =====
+* Odpovídá základnímu návrhu napájecího bloku
+* Sečtení napájecích větví
+* Start po 10 ms od napájení ochrany VDD
+* Maskování počátečního proudového impulzu 1 ms
+* Autorestart pojistka 20 mA s prodlevou 10 ms
+* Měření odebíraného proudu s převoden 1 V / 10 mA - Ivcc vzorkován ADC s f = 100 Hz a integrací přes 1 s
+* LDO stabilizátor 3 V / 0,15 A - VCC - příkon ~9 mA
+* Napájení AD převodníku v uP přes FPC filtr - ACC
+* Referenční napětí UREF = 2,5 V vzorkováno ADC s f = 100 Hz a integrací přes 1 s
+* Klidové upnutí sběrnic od zdroje VDD
+
+===== Zabezpečení =====
+* Blokování - vysílání budiče sběrnice, přepalování, řízení EN3 signály OK a NOK
+* Externí watchdog po překročení 1 s generuje pulzy - MAX6370 (2 s po startu napájení)
+* Obvod AND s RC členem 10 us zajišťuje počáteční stav
+* D klopný obvod vytváří statický signál OK=log.1, pokud pravidelně uP mění WDI signál s per. menší než 1 s
+
+===== Přepalování =====
+* Nutné dva signály uP současně PAL+S0-S2 a NOK+EAR
+* Softwarové - pouze na příkaz - dvojnásobek přepalovací doby a kanál přepalování
+* Čtyři kanály antén - ANT1-4
+* HEAR - trvalé uzemnění EAR přes tranzistor od VB1-2
+
+
